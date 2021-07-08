@@ -1,0 +1,4 @@
+---
+keyserver: "hkps://keys.openpgp.org"
+ringdir: "/home/dfoulks/projects/GPGremlin/keyrings"
+min_key: 4096
