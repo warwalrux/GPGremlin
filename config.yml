@@ -1,4 +1,10 @@
 ---
-keyserver: "hkps://keys.openpgp.org"
-ringdir: "/home/dfoulks/projects/GPGremlin/keyrings"
+keyservers:
+  - url: "hkps://keyserver.ubuntu.com"
+    name: "ubuntu"
+  - url: "hkps://keyserver.dcc.sib.swiss"
+    name: "swiss"
+  - url: "hkps://keys.openpgp.org"
+    name: "openpgp"
+ringdir: "/home/dfoulks/Projects/gpgremlin/keyrings"
 min_key: 4096

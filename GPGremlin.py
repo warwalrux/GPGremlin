@@ -5,6 +5,7 @@ import subprocess
 import sys
 import yaml
 import argparse
+import tabulate
 
 class Gremlin(object):
     """
@@ -16,21 +17,30 @@ class Gremlin(object):
     def __init__(self, config):
         self.unacceptable_tags = ['help', 'command', 'precmd']
         self.command = shutil.which('gpg')
-        self.keyserver = hkp4py.KeyServer(config['keyserver'])
         self.config = config
-       
-    def _validate_config(self):
-        print("Validating...")
-        
-    def _fetchKey(self, search_term, key_id=""):
-        keys = self.keyserver.search(search_term)
-        for key in keys:
-            if key.key_length >= self.config['min_key'] and key.keyid == key_id:
-                return key.key_blob.decode('utf8')
-            else:
-                return None
+        self.keyservers = {}
+        for keyserver in config['keyservers']:
+            self.keyservers[keyserver['name']] = hkp4py.KeyServer(keyserver['url'])
 
-    def gpg_run(self, conf={}):
+    def __fetchKey(self, search_term, key_id="", raw=False):
+        results = [ self.keyservers[keyserver].search(search_term) for keyserver in self.keyservers ]
+        if raw:
+            return results
+        
+        for keys in results:
+            if keys:
+                for key in keys:
+                    if key.key_length >= self.config['min_key'] and key.keyid == key_id:
+                        return key.key_blob.decode('utf8')
+                    else:
+                        continue 
+    
+    def __printTable(self, data):
+        fmt = "grid"
+        headers = data.pop(0)
+        print(tabulate.tabulate(data, headers=headers, tablefmt=fmt, showindex="always", maxcolwidths=[None, None]))
+
+    def _gpg_run(self, conf={}):
         """
         Parse an object containing directives and values to pass to the
         GPG executable found in the system path in a raw format. There is
@@ -57,10 +67,12 @@ class Gremlin(object):
         Create additional (read non-default) named keyrings
         from file
         """
+
         if os.path.isfile(os.path.join(self.config['ringdir'], name + ".yml")):
             ring_data = yaml.load(open(os.path.join(self.config['ringdir'], name + ".yml")), Loader=yaml.FullLoader)
         else:
             print("%s not found" %(os.path.join(self.config['ringdir'], name + ".yml")))
+            sys.exit(0)
 
         name = name + ".gpg"
         conf = {
@@ -69,31 +81,34 @@ class Gremlin(object):
             "fingerprint": True,
         }
         # Create the new keyring
-        self.gpg_run(conf)
+        self._gpg_run(conf)
         
         for monitor in ring_data['monitors']:
             print("Adding key for: %s" %(monitor))
-            conf = {
-                'import': True, 
-                'precmd': ['echo', self._fetchKey(monitor, ring_data['monitors'][monitor])],
-                'no-default-keyring': True,
-                'keyring': name,
-            }
-            self.gpg_run(conf)
+            print("Ensuring %s" %(ring_data['monitors'][monitor]))
+            key = self.__fetchKey(monitor, ring_data['monitors'][monitor])
+            print(key)
+#            conf = {
+#                'import': True, 
+#                'precmd': ['echo', self.__fetchKey(monitor, ring_data['monitors'][monitor])],
+#                'no-default-keyring': True,
+#                'keyring': name,
+#            }
+#            self._gpg_run(conf)
 
     def searchKeys(self, search_term):
         """
         Search configured keyserver for 'search_term'
         """
-        rows = []
-        keys = self.keyserver.search(search_term)
-        for key in keys:
-            if key.key_length >= self.config['min_key']:
-                row = { 'id': key.keyid, 'creation_date': key.creation_date, 'expiration_date': key.expiration_date, 'identities': key.identities }
-                rows.append(row)
-                row_format = "{:>25}" * (len(row.keys()) + 1)
-        print(*rows[0].keys())
-        [[ print(*row.values()) for row in rows ]]
+        rows = [["host", "id", "creation date", "expiration date", "length", "identities"]]
+        results = [ self.keyservers[keyserver].search(search_term) for keyserver in self.keyservers ]
+        for keys in self.__fetchKey(search_term, raw=True):
+            if keys:
+                for key in keys:
+                    if key.key_length >= self.config['min_key']:
+                        rows.append([key.host, key.keyid, key.creation_date, key.expiration_date, key.key_length, "\n".join([ identity.uid for identity in key.identities ]) ])
+        if len(rows) > 1: self.__printTable(rows)
+        else: print("Nothing found!")
 
     def listKeys(self, name):
         """
@@ -104,4 +119,4 @@ class Gremlin(object):
             "no-default-keyring": True,
             "keyring": name + ".gpg"
         }
-        print(self.gpg_run(conf))
+        print(self._gpg_run(conf))
