@@ -84,24 +84,27 @@ class Gremlin(object):
         self._gpg_run(conf)
         
         for monitor in ring_data['monitors']:
-            print("Adding key for: %s" %(monitor))
-            print("Ensuring %s" %(ring_data['monitors'][monitor]))
+            print("Finding key for: %s" %(monitor))
             key = self.__fetchKey(monitor, ring_data['monitors'][monitor])
-            print(key)
-#            conf = {
-#                'import': True, 
-#                'precmd': ['echo', self.__fetchKey(monitor, ring_data['monitors'][monitor])],
-#                'no-default-keyring': True,
-#                'keyring': name,
-#            }
-#            self._gpg_run(conf)
+            if not key:
+                c = input("GPG key for %s not found. Continue?[Y]: "%(monitor))
+                if c != "Y":
+                    print("Exiting...")
+                    sys.exit(0)
+            else:
+                conf = {
+                    'import': True, 
+                    'precmd': ['echo', self.__fetchKey(monitor, ring_data['monitors'][monitor])],
+                    'no-default-keyring': True,
+                    'keyring': name,
+                }
+                self._gpg_run(conf)
 
     def searchKeys(self, search_term):
         """
         Search configured keyserver for 'search_term'
         """
         rows = [["host", "id", "creation date", "expiration date", "length", "identities"]]
-        results = [ self.keyservers[keyserver].search(search_term) for keyserver in self.keyservers ]
         for keys in self.__fetchKey(search_term, raw=True):
             if keys:
                 for key in keys:
