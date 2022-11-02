@@ -12,6 +12,7 @@ if __name__ == "__main__":
                         help='debug test switch')
     parser.add_argument('-n', '--name',
                         help='Key Ring Name')
+
     actions = parser.add_mutually_exclusive_group()
     actions.add_argument('-c', '--create', action='store_true',
                         help='Create Ring')
@@ -23,6 +24,8 @@ if __name__ == "__main__":
                         help='Run gpg with directives from YAML')
     actions.add_argument('-s', '--search',
                         help = "search term")
+    actions.add_argument('-k', '--keyid',
+                        help = "Key ID")
     args = parser.parse_args()
 
     g = Gremlin(config)
@@ -33,3 +36,5 @@ if __name__ == "__main__":
         g.listKeys(args.name)
     if args.search:
         g.searchKeys(args.search)
+    if args.keyid:
+        g.showKey(args.keyid)

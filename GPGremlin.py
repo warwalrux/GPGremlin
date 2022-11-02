@@ -22,7 +22,7 @@ class Gremlin(object):
         for keyserver in config['keyservers']:
             self.keyservers[keyserver['name']] = hkp4py.KeyServer(keyserver['url'])
 
-    def __fetchKey(self, search_term, key_id="", raw=False):
+    def __fetchKey(self, search_term, key_id="", raw=False, data=False, blob=False):
         results = [ self.keyservers[keyserver].search(search_term) for keyserver in self.keyservers ]
         if raw:
             return results
@@ -31,7 +31,10 @@ class Gremlin(object):
             if keys:
                 for key in keys:
                     if key.key_length >= self.config['min_key'] and key.keyid == key_id:
-                        return key.key_blob.decode('utf8')
+                        if data:
+                            return key
+                        if blob:
+                            return key.key_blob.decode('utf8')
                     else:
                         continue 
     
@@ -94,7 +97,7 @@ class Gremlin(object):
             else:
                 conf = {
                     'import': True, 
-                    'precmd': ['echo', self.__fetchKey(monitor, ring_data['monitors'][monitor])],
+                    'precmd': ['echo', key],
                     'no-default-keyring': True,
                     'keyring': name,
                 }
@@ -113,6 +116,18 @@ class Gremlin(object):
         if len(rows) > 1: self.__printTable(rows)
         else: print("Nothing found!")
 
+    def showKey(self, key_id):
+        """
+        Search configured keyservers for key with id: key_id"
+        """
+        key = self.__fetchKey(key_id, key_id=key_id, blob=True)
+        conf = {
+            'show-keys': True,
+            'precmd': ['echo', key],
+            'with-fingerprint': True
+        }
+        self._gpg_run(conf)
+
     def listKeys(self, name):
         """
         list keys in the named keyring
@@ -122,4 +137,4 @@ class Gremlin(object):
             "no-default-keyring": True,
             "keyring": name + ".gpg"
         }
-        print(self._gpg_run(conf))
+        self._gpg_run(conf)
