@@ -8,3 +8,4 @@ keyservers:
     name: "openpgp"
 ringdir: "/home/dfoulks/Projects/gpgremlin/keyrings"
 min_key: 4096
+table_format: "grid"

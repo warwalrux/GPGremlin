@@ -39,7 +39,7 @@ class Gremlin(object):
                         continue 
     
     def __printTable(self, data):
-        fmt = "grid"
+        fmt = self.config['table_format']
         headers = data.pop(0)
         print(tabulate.tabulate(data, headers=headers, tablefmt=fmt, showindex="always", maxcolwidths=[None, None]))
 
