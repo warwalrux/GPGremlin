@@ -23,6 +23,7 @@ class Gremlin(object):
             self.keyservers[keyserver['name']] = hkp4py.KeyServer(keyserver['url'])
 
     def __fetchKey(self, search_term, key_id="", raw=False, data=False, blob=False):
+
         results = [ self.keyservers[keyserver].search(search_term) for keyserver in self.keyservers ]
         if raw:
             return results
@@ -30,7 +31,7 @@ class Gremlin(object):
         for keys in results:
             if keys:
                 for key in keys:
-                    if key.key_length >= self.config['min_key'] and key.keyid == key_id:
+                    if key.keyid == key_id:
                         if data:
                             return key
                         if blob:
@@ -88,7 +89,7 @@ class Gremlin(object):
         
         for monitor in ring_data['monitors']:
             print("Finding key for: %s" %(monitor))
-            key = self.__fetchKey(monitor, ring_data['monitors'][monitor])
+            key = self.__fetchKey(monitor, ring_data['monitors'][monitor], blob=True)
             if not key:
                 c = input("GPG key for %s not found. Continue?[Y]: "%(monitor))
                 if c != "Y":
