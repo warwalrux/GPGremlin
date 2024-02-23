@@ -17,7 +17,7 @@ class Gremlin(object):
     def __init__(self, config):
         from . import key
         from . import keyring
-        from . import utils
+        from . import secure
         from . import crypt
 
         self.unacceptable_tags = ['help', 'command', 'precmd', 'homedir']

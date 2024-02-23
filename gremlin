@@ -15,36 +15,44 @@ def help_msg(name=None):
 
     Subcommands:
 
-        Key
-
-            -k      key
-            -f      filename
-            -K      keyring (if not provided, default keyring will be used)
-
+        key
             Actions:
-            -s      search term
-            -e      export (can be used with key)
-            -i      import (requires filename or key)
-            -v      view key details (requires key or filename)
+            -s/--search     search term
+            -e/--export     export (can be used with key)
+            -i/--import     import (requires filename or key)
+            -v/--view       view key details (requires key or filename)
+            
+            Arguments:
+            -k/--key        key
+            -f/--filename   filename
+            -K/--keyring    keyring (if not provided, default keyring will be used)
 
 
-        Keyring
-
-            -k      keyring
-            -f      filename
-
+        keyring
             Actions
             -l      List Keyrings (List keys on keyring if used with -K)
             -c      create new keyring
             -d      destroy keyring
             -e      export keyring
- 
-        Encrypt:
+
+            Arguments: 
+            -k/--keyring    keyring name
+            -f/--filename   filename
+
+
+        encrypt
             -r      recipient
             -R      recipient-file
-            -i      input-file
-            -o      output-file
+            -i      infile
+            -o      outfile
+
+
+        decrypt
+            -infile
+
+            
     '''
+
 def fetch_args():
     parser = argparse.ArgumentParser(description='GPGremlin -- A Python GnuPG Jawn', usage=help_msg())
     
@@ -73,19 +81,27 @@ def fetch_args():
 
     elif subcommand == "encrypt":
         parser.add_argument('-o', '--outfile', help="Output Filename")
-        parser.add_argument('-r', '--recips', help='Recipient email')
-        parser.add_argument('-R', '--recipient-file', help='Recipients File')
+        parser.add_argument('-r', '--recipients', help='Recipient email')
+        parser.add_argument('-R', '--recipients-file', help='Recipients File')
         parser.add_argument('-i', '--infile', help='Input Filename')
 
     ### Decrypt subcommand options
     elif subcommand == "decrypt":
         parser.add_argument('-o', '--outfile', help="Output Filename")
         parser.add_argument('-i', '--infile', help='Input Filename')
+        parser.add_argument('-v', '--verify-sigs', help="Verify signatures")
 
     ### Inspect subcommand options
     elif subcommand == "inspect":
         parser.add_argument('-l', '--list')
         parser.add_argument('-f', '--filename')
+
+    ### Secure subcommand
+    elif subcommand == "secure":
+        parser.add_argument('-f', '--filename', help="filename")
+        s_actions = parser.add_mutually_exclusive_group()
+        s_actions.add_argument('-s', '--sign', help="Sign a file", action='store_true')
+        s_actions.add_argument('-v', '--verify', help="Verify Signatures on a file", action='store_true')
 
     ### Keyring subcommand
     elif subcommand == "keyring":
@@ -190,11 +206,34 @@ if __name__ == "__main__":
 
             print(data['output'].decode('utf8'))
 
-    if args.subcommand == "encrypt":
-        print(args)
+    ### Encrypt
 
+    if args.subcommand == "encrypt":
+        if not args.infile or not args.outfile:
+            print("Provide Input file (-i/--infile) and Output file (-o/--outfile)")
+            sys.exit(0)
+        data = Gremlin.crypt.encrypt(g, args.infile, getattr(args, "outfile", False), getattr(args, 'recipients', False), getattr(args, 'recipients-file', False))
+
+    ### Decrypt
     if args.subcommand == "decrypt":
-        print(args)
+        if not args.infile:
+            print("Provide Input file (-i/--infile)")
+            sys.exit(0)
+        data = Gremlin.crypt.decrypt(g, args.infile, getattr(args, "outfile", False))
+        if not args.outfile:
+            print(data['output'].decode('utf8'))
+    
+    ### Secure
+    if args.subcommand == "secure":
+        if not args.filename:
+            print("Provide Input file (-i/--infile)")
+            sys.exit(0)
+
+        if args.verify:
+            data = Gremlin.secure.verify(g, args.filename)
+            print(data['output'].decode('utf8'))
+        if args.sign:
+            data = Gremlin.secure.sign(g, args.filename)
 
     if args.subcommand == "inspect":
         print(args)
