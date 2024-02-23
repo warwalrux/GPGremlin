@@ -2,12 +2,12 @@
 keyservers:
   - url: "hkps://keyserver.ubuntu.com"
     name: "ubuntu"
-  - url: "hkps://keyserver.dcc.sib.swiss"
-    name: "swiss"
   - url: "hkps://keys.openpgp.org"
     name: "openpgp"
-  - url: "hkps://pgp.mit.edu"
-    name: "mit"
+      #  - url: "hkps://pgp.mit.edu"
+      #    name: "mit"
 ringdir: "/home/dfoulks/Projects/gpgremlin/keyrings"
 min_key: 4096
 table_format: "grid"
+  #gpghome: "/home/dfoulks/Projects/gpgremlin/keyrings"
+gpghome: "/home/dfoulks/.gnupg"

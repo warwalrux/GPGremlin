@@ -1,40 +1,205 @@
 #!/usr/bin/env python3
+import sys
 import yaml
 import argparse
-from GPGremlin import *
+
+from GPGremlin import Gremlin
+
+def help_msg(name=None):
+    return '''
+
+    GPGremlin -- A Python Gnu Privacy Guard Jawn
+
+    Usage:
+        gremlin <subcommand> <options>
+
+    Subcommands:
+
+        Key
+
+            -k      key
+            -f      filename
+            -K      keyring (if not provided, default keyring will be used)
+
+            Actions:
+            -s      search term
+            -e      export (can be used with key)
+            -i      import (requires filename or key)
+            -v      view key details (requires key or filename)
+
+
+        Keyring
+
+            -k      keyring
+            -f      filename
+
+            Actions
+            -l      List Keyrings (List keys on keyring if used with -K)
+            -c      create new keyring
+            -d      destroy keyring
+            -e      export keyring
+ 
+        Encrypt:
+            -r      recipient
+            -R      recipient-file
+            -i      input-file
+            -o      output-file
+    '''
+def fetch_args():
+    parser = argparse.ArgumentParser(description='GPGremlin -- A Python GnuPG Jawn', usage=help_msg())
+    
+    if len(sys.argv) <= 1:
+        parser.print_help()
+        sys.exit(0)
+    subcommand = sys.argv[1]
+    sys.argv.pop(1)
+
+    parser.add_argument('--debug', action='store_true', help="Debug switch")
+    
+    if subcommand == "key":
+        parser.add_argument('-k', '--key', help="Key Name")    
+        parser.add_argument('-K', '--keyring', help="Key Name")    
+        parser.add_argument('-f', '--filename', help="Filename")
+
+        key_actions = parser.add_mutually_exclusive_group()
+        key_actions.add_argument('-s', '--search',
+                            help = "search for keys")
+        key_actions.add_argument('-e', '--export', action='store_true',
+                            help = "export key")
+        key_actions.add_argument('-i', '--import', action='store_true',
+                            help = "import key")
+        key_actions.add_argument('-v', '--view', action='store_true',
+                            help = "view key")
+
+    elif subcommand == "encrypt":
+        parser.add_argument('-o', '--outfile', help="Output Filename")
+        parser.add_argument('-r', '--recips', help='Recipient email')
+        parser.add_argument('-R', '--recipient-file', help='Recipients File')
+        parser.add_argument('-i', '--infile', help='Input Filename')
+
+    ### Decrypt subcommand options
+    elif subcommand == "decrypt":
+        parser.add_argument('-o', '--outfile', help="Output Filename")
+        parser.add_argument('-i', '--infile', help='Input Filename')
+
+    ### Inspect subcommand options
+    elif subcommand == "inspect":
+        parser.add_argument('-l', '--list')
+        parser.add_argument('-f', '--filename')
+
+    ### Keyring subcommand
+    elif subcommand == "keyring":
+        parser.add_argument('-k', '--keyring', help="Keyring Name")    
+        parser.add_argument('-f', '--filename', help="Filename")
+
+        kr_actions = parser.add_mutually_exclusive_group()
+        kr_actions.add_argument('-c', '--create', action='store_true',
+                            help='Create ring')
+        kr_actions.add_argument('-d', '--destroy', action='store_true',
+                            help='Destroy ring')
+        kr_actions.add_argument('-l', '--list', action='store_true',
+                            help='List (first keyrings, if used with -k will show keys)'
+        kr_actions.add_argument('-e', '--export', action='store_true',
+                            help='Export ring')
+    else:
+        parser.print_help()
+
+    args = parser.parse_args()
+    setattr(args, "subcommand", subcommand)
+    return args
+
 
 if __name__ == "__main__":
     with open("config.yml", "r") as conf:
         config = yaml.load(conf, Loader=yaml.FullLoader)
-    parser = argparse.ArgumentParser(description='GPGremlin -- A Python GnuPG Jawn')
+    args = fetch_args()
+    g = Gremlin.new(config)
+
+    if args.debug:
+        print(dir(Gremlin))
     
-    parser.add_argument('-d', '--debug', action='store_true',
-                        help='debug test switch')
-    parser.add_argument('-n', '--name',
-                        help='Key Ring Name')
+    ### KEYRING
+    if args.subcommand == "keyring":
+        if args.create and args.keyring:
+            print("lol")
+            sys.exit(0)
+            data = Gremlin.keyring.newKeyring(g, args.keyring)
+        if args.destroy and args.keyring:
+            data = Gremlin.keyring.destroyKeyring(g, args.keyring)
+        if args.export:
+            data = Gremlin.keyring.exportKeyring(g, args.keyring, getattr(args, "filename", False))
+            if not getattr(args, "filename", False):
+                print(data['output'].decode('utf8'))
+        if args.list:
+            if args.keyring:
+                data = Gremlin.keyring.listKeys(g, args.keyring)
+                print(data['output'].decode('utf8'))
+            else:
+                data = Gremlin.keyring.listKeyrings(g)
+                print(data)
 
-    actions = parser.add_mutually_exclusive_group()
-    actions.add_argument('-c', '--create', action='store_true',
-                        help='Create Ring')
-    actions.add_argument('-D', '--destroy', action='store_true',
-                        help='Destroy Ring')
-    actions.add_argument('-l', '--list', action='store_true',
-                        help='List <rings|keys>')
-    actions.add_argument('-r', '--run',
-                        help='Run gpg with directives from YAML')
-    actions.add_argument('-s', '--search',
-                        help = "search term")
-    actions.add_argument('-k', '--keyid',
-                        help = "Key ID")
-    args = parser.parse_args()
+    ### KEY
+    if args.subcommand == "key":
+        # Search
+        if args.search:
+            print("Searching for %s, this may take a minute..." %(args.search))
+            Gremlin.key.searchKeys(g, args.search)
 
-    g = Gremlin(config)
+        # Export
+        if getattr(args, "export"):
+            data = Gremlin.key.exportKey(
+                    g, 
+                    args.key, 
+                    getattr(args, "filename", ""),
+                    getattr(args, "keyring", "")
+                )
+            if not getattr(args, "filename", False):
+                print(data['output'].decode('utf8'))
 
-    if args.create and args.name:
-        g.newKeyring(args.name)
-    if args.list and args.name:
-        g.listKeys(args.name)
-    if args.search:
-        g.searchKeys(args.search)
-    if args.keyid:
-        g.showKey(args.keyid)
+        # Import
+        if getattr(args, "import"):
+            if getattr(args, 'filename', False):
+                data = Gremlin.key.importKeyfile(
+                        g,
+                        args.filename
+                    )
+            elif getattr(args, "key", False):
+                data = Gremlin.key.recvKey(
+                        g,
+                        args.key,
+                    )
+            else:
+                print("Provide a filename (-f/--filename) or Key ID (-k/--key)")
+
+        # View
+        if args.view:
+            if getattr(args, "key", None):
+                data = Gremlin.key.showKey(
+                        g,
+                        args.key,
+                        None,
+                    )
+            elif getattr(args, "filename", None):
+                data = Gremlin.key.showKey(
+                        g,
+                        None,
+                        args.filename
+                    )
+            else:
+                print("Please provide either a key (-k/--key) or filename (-f/--filename) to inspect")
+
+            print(data['output'].decode('utf8'))
+
+    if args.subcommand == "encrypt":
+        print(args)
+
+    if args.subcommand == "decrypt":
+        print(args)
+
+    if args.subcommand == "inspect":
+        print(args)
+        if args.list:
+            if args.filename:
+                print(args.filename)
+                data = open(args.filename, "r").read()
+                g.showKey(None, open(args.filename, "r").read())
