@@ -98,7 +98,7 @@ def fetch_args():
         kr_actions.add_argument('-d', '--destroy', action='store_true',
                             help='Destroy ring')
         kr_actions.add_argument('-l', '--list', action='store_true',
-                            help='List (first keyrings, if used with -k will show keys)'
+                            help='List (first keyrings, if used with -k will show keys)')
         kr_actions.add_argument('-e', '--export', action='store_true',
                             help='Export ring')
     else:
